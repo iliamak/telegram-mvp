@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "setup-tdlib": "curl -L 'https://github.com/tdlib/td/raw/master/example/web/tdweb.js' -o public/tdweb.js && curl -L 'https://github.com/tdlib/td/raw/master/example/web/worker.js' -o public/worker.js"
+    "setup-tdlib": "mkdir -p public/wasm && curl -L 'https://github.com/tdlib/td/raw/master/example/web/tdweb.js' -o public/tdweb.js && curl -L 'https://github.com/tdlib/td/raw/master/example/web/worker.js' -o public/worker.js && curl -L 'https://github.com/tdlib/td/releases/download/v1.8.0/td_wasm.js' -o public/wasm/td_wasm.js && curl -L 'https://github.com/tdlib/td/releases/download/v1.8.0/td_wasm.wasm' -o public/wasm/td_wasm.wasm"
   },
   "dependencies": {
     "react": "^18.2.0",
