@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telegram MVP</title>
+  <script>
+    // Проверка на наличие ошибок загрузки
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error('Глобальная ошибка:', { message, source, lineno, colno, error });
+      
+      // Отображаем ошибку на странице
+      var errorContainer = document.getElementById('error-container');
+      if (errorContainer) {
+        errorContainer.style.display = 'block';
+        errorContainer.innerHTML += '<div><strong>Ошибка:</strong> ' + message + '<br><small>' + source + ':' + lineno + ':' + colno + '</small></div>';
+      }
+      
+      return false;
+    };
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Контейнер для отображения ошибок -->
+  <div id="error-container" style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; background-color: #f8d7da; color: #721c24; padding: 10px; font-family: monospace; max-height: 200px; overflow-y: auto; z-index: 9999;"></div>
+</body>
+</html>
