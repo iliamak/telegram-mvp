@@ -4,15 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node copy-tdweb-files.cjs && vite",
-    "build": "node copy-tdweb-files.cjs && vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview",
-    "copy-tdweb": "node copy-tdweb-files.cjs"
+    "setup-tdlib": "curl -L 'https://github.com/tdlib/td/raw/master/example/web/tdweb.js' -o public/tdweb.js && curl -L 'https://github.com/tdlib/td/raw/master/example/web/worker.js' -o public/worker.js"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "tdweb": "^1.8.0"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
