@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import TdClient from 'tdweb';
 
+// Отложенная загрузка TDLib без прямого импорта
 function Auth({ onAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' или 'code'
+  const [step, setStep] = useState('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [client, setClient] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [tdlibLoaded, setTdlibLoaded] = useState(false);
   const logsRef = useRef(null);
+  const [showLogs, setShowLogs] = useState(true);
 
   // Функция для добавления логов
   const addLog = (message, type = 'info') => {
@@ -24,55 +26,95 @@ function Auth({ onAuthenticated }) {
     }, 100);
   };
 
+  // Динамическая загрузка скрипта TDLib
   useEffect(() => {
-    addLog('Инициализация TDLib клиента...');
+    addLog('Начинаем загрузку TDLib...');
     
-    try {
-      // Проверяем, что переменные окружения доступны
-      if (!import.meta.env.VITE_TELEGRAM_API_ID || !import.meta.env.VITE_TELEGRAM_API_HASH) {
-        addLog('Ошибка: API_ID или API_HASH не найдены в переменных окружения', 'error');
-        setError('Ошибка инициализации: Отсутствуют ключи API. Проверьте настройки проекта.');
-        return;
-      }
-      
-      addLog(`API ID: ${import.meta.env.VITE_TELEGRAM_API_ID}`);
-      
-      // Создаем TDLib клиент
-      const tdLibClient = new TdClient({
-        apiId: parseInt(import.meta.env.VITE_TELEGRAM_API_ID),
-        apiHash: import.meta.env.VITE_TELEGRAM_API_HASH,
-        logVerbosityLevel: 2,
-        jsLogVerbosityLevel: 'info',
-        mode: 'wasm',
-        onUpdate: update => {
-          if (update['@type'] === 'updateAuthorizationState') {
-            addLog(`Обновление статуса авторизации: ${update.authorization_state['@type']}`);
-          }
-        }
+    // Функция для динамической загрузки скрипта TDLib
+    const loadTdLibScript = () => {
+      return new Promise((resolve, reject) => {
+        addLog('Загрузка tdweb.js...');
+        
+        const script = document.createElement('script');
+        script.src = '/tdweb.js'; // Путь к скрипту в публичной директории
+        script.async = true;
+        script.onload = () => {
+          addLog('tdweb.js успешно загружен', 'success');
+          resolve(true);
+        };
+        script.onerror = (err) => {
+          addLog(`Ошибка загрузки tdweb.js: ${err}`, 'error');
+          reject(new Error('Не удалось загрузить TDLib'));
+        };
+        
+        document.body.appendChild(script);
       });
-      
-      addLog('TDLib клиент успешно создан');
-      setClient(tdLibClient);
-      
-      // Проверяем, авторизован ли уже пользователь
-      tdLibClient.send({
-        '@type': 'getAuthorizationState'
-      }).then(authState => {
+    };
+    
+    // Проверяем наличие переменных окружения
+    if (!import.meta.env.VITE_TELEGRAM_API_ID || !import.meta.env.VITE_TELEGRAM_API_HASH) {
+      addLog('Ошибка: API_ID или API_HASH не найдены в переменных окружения', 'error');
+      setError('Ошибка инициализации: Отсутствуют ключи API. Проверьте настройки проекта.');
+      return;
+    }
+    
+    loadTdLibScript()
+      .then(() => {
+        // Проверяем, доступен ли TdClient после загрузки скрипта
+        if (typeof window.tdweb === 'undefined') {
+          throw new Error('TDLib не загружен или недоступен');
+        }
+        
+        addLog('Инициализация TDLib клиента...');
+        addLog(`API ID: ${import.meta.env.VITE_TELEGRAM_API_ID}`);
+        
+        // Создаем TDLib клиент через глобальный объект tdweb
+        const tdLibClient = new window.tdweb.TdClient({
+          apiId: parseInt(import.meta.env.VITE_TELEGRAM_API_ID),
+          apiHash: import.meta.env.VITE_TELEGRAM_API_HASH,
+          logVerbosityLevel: 2,
+          jsLogVerbosityLevel: 'info',
+          mode: 'wasm', // Используем WebAssembly
+          instanceName: 'telegram-mvp-instance',
+          onUpdate: update => {
+            if (update['@type'] === 'updateAuthorizationState') {
+              addLog(`Обновление статуса авторизации: ${update.authorization_state['@type']}`);
+            }
+          }
+        });
+        
+        addLog('TDLib клиент успешно создан');
+        setClient(tdLibClient);
+        setTdlibLoaded(true);
+        
+        // Проверяем, авторизован ли уже пользователь
+        return tdLibClient.send({
+          '@type': 'getAuthorizationState'
+        });
+      })
+      .then(authState => {
+        if (!authState) return;
+        
         addLog(`Получен текущий статус авторизации: ${authState['@type']}`);
         if (authState['@type'] === 'authorizationStateReady') {
           addLog('Пользователь уже авторизован, переход к списку чатов');
-          onAuthenticated(tdLibClient);
+          onAuthenticated(client);
         }
-      }).catch(err => {
-        addLog(`Ошибка при проверке статуса авторизации: ${err.message}`, 'error');
+      })
+      .catch(err => {
+        addLog(`Критическая ошибка при инициализации: ${err.message}`, 'error');
+        setError(`Ошибка инициализации: ${err.message}`);
+        console.error('Полная ошибка:', err);
       });
-    } catch (err) {
-      addLog(`Критическая ошибка при инициализации: ${err.message}`, 'error');
-      setError(`Ошибка инициализации: ${err.message}`);
-    }
   }, [onAuthenticated]);
 
   const sendPhoneNumber = async () => {
+    if (!client || !tdlibLoaded) {
+      addLog('TDLib еще не инициализирован полностью', 'error');
+      setError('TDLib не готов. Пожалуйста, подождите или перезагрузите страницу.');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     addLog(`Отправка номера телефона: ${phoneNumber}`);
@@ -103,6 +145,12 @@ function Auth({ onAuthenticated }) {
   };
 
   const sendVerificationCode = async () => {
+    if (!client || !tdlibLoaded) {
+      addLog('TDLib еще не инициализирован полностью', 'error');
+      setError('TDLib не готов. Пожалуйста, подождите или перезагрузите страницу.');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     addLog(`Отправка кода подтверждения: ${verificationCode}`);
@@ -126,8 +174,6 @@ function Auth({ onAuthenticated }) {
     }
   };
 
-  // Переключатель для отображения/скрытия логов
-  const [showLogs, setShowLogs] = useState(true);
   const toggleLogs = () => setShowLogs(prev => !prev);
 
   return (
@@ -152,11 +198,11 @@ function Auth({ onAuthenticated }) {
               onChange={(e) => setPhoneNumber(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="+79001234567"
-              disabled={isLoading}
+              disabled={isLoading || !tdlibLoaded}
             />
             <button
               onClick={sendPhoneNumber}
-              disabled={isLoading || !phoneNumber}
+              disabled={isLoading || !phoneNumber || !tdlibLoaded}
               className="w-full mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {isLoading ? 'Отправка...' : 'Отправить код'}
@@ -218,7 +264,8 @@ function Auth({ onAuthenticated }) {
                     className={`mb-1 ${
                       log.type === 'error' ? 'text-red-400' : 
                       log.type === 'warning' ? 'text-yellow-400' : 
-                      'text-green-400'
+                      log.type === 'success' ? 'text-green-400' :
+                      'text-blue-400'
                     }`}
                   >
                     <span className="text-gray-500">[{log.timestamp}]</span> {log.message}
