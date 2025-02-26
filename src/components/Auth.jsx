@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TdClient from 'tdweb';
 
 function Auth({ onAuthenticated }) {
@@ -8,28 +8,74 @@ function Auth({ onAuthenticated }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [client, setClient] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const logsRef = useRef(null);
+
+  // Функция для добавления логов
+  const addLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prevLogs => [...prevLogs, { message, type, timestamp }]);
+    
+    // Прокрутка вниз при новых логах
+    setTimeout(() => {
+      if (logsRef.current) {
+        logsRef.current.scrollTop = logsRef.current.scrollHeight;
+      }
+    }, 100);
+  };
 
   useEffect(() => {
-    const tdLibClient = new TdClient({
-      apiId: import.meta.env.VITE_TELEGRAM_API_ID,
-      apiHash: import.meta.env.VITE_TELEGRAM_API_HASH
-    });
+    addLog('Инициализация TDLib клиента...');
     
-    setClient(tdLibClient);
-    
-    // Проверяем, авторизован ли уже пользователь
-    tdLibClient.send({
-      '@type': 'getAuthorizationState'
-    }).then(authState => {
-      if (authState['@type'] === 'authorizationStateReady') {
-        onAuthenticated(tdLibClient);
+    try {
+      // Проверяем, что переменные окружения доступны
+      if (!import.meta.env.VITE_TELEGRAM_API_ID || !import.meta.env.VITE_TELEGRAM_API_HASH) {
+        addLog('Ошибка: API_ID или API_HASH не найдены в переменных окружения', 'error');
+        setError('Ошибка инициализации: Отсутствуют ключи API. Проверьте настройки проекта.');
+        return;
       }
-    });
+      
+      addLog(`API ID: ${import.meta.env.VITE_TELEGRAM_API_ID}`);
+      
+      // Создаем TDLib клиент
+      const tdLibClient = new TdClient({
+        apiId: parseInt(import.meta.env.VITE_TELEGRAM_API_ID),
+        apiHash: import.meta.env.VITE_TELEGRAM_API_HASH,
+        logVerbosityLevel: 2,
+        jsLogVerbosityLevel: 'info',
+        mode: 'wasm',
+        onUpdate: update => {
+          if (update['@type'] === 'updateAuthorizationState') {
+            addLog(`Обновление статуса авторизации: ${update.authorization_state['@type']}`);
+          }
+        }
+      });
+      
+      addLog('TDLib клиент успешно создан');
+      setClient(tdLibClient);
+      
+      // Проверяем, авторизован ли уже пользователь
+      tdLibClient.send({
+        '@type': 'getAuthorizationState'
+      }).then(authState => {
+        addLog(`Получен текущий статус авторизации: ${authState['@type']}`);
+        if (authState['@type'] === 'authorizationStateReady') {
+          addLog('Пользователь уже авторизован, переход к списку чатов');
+          onAuthenticated(tdLibClient);
+        }
+      }).catch(err => {
+        addLog(`Ошибка при проверке статуса авторизации: ${err.message}`, 'error');
+      });
+    } catch (err) {
+      addLog(`Критическая ошибка при инициализации: ${err.message}`, 'error');
+      setError(`Ошибка инициализации: ${err.message}`);
+    }
   }, [onAuthenticated]);
 
   const sendPhoneNumber = async () => {
     setIsLoading(true);
     setError('');
+    addLog(`Отправка номера телефона: ${phoneNumber}`);
     
     try {
       await client.send({
@@ -44,8 +90,11 @@ function Auth({ onAuthenticated }) {
         }
       });
       
+      addLog('Запрос на номер телефона успешно отправлен, ожидание кода');
       setStep('code');
     } catch (err) {
+      const errorMessage = err.message || 'Неизвестная ошибка';
+      addLog(`Ошибка при отправке номера: ${errorMessage}`, 'error');
       setError('Ошибка при отправке номера телефона. Проверьте формат и попробуйте снова.');
       console.error(err);
     } finally {
@@ -56,6 +105,7 @@ function Auth({ onAuthenticated }) {
   const sendVerificationCode = async () => {
     setIsLoading(true);
     setError('');
+    addLog(`Отправка кода подтверждения: ${verificationCode}`);
     
     try {
       await client.send({
@@ -63,15 +113,22 @@ function Auth({ onAuthenticated }) {
         'code': verificationCode
       });
       
+      addLog('Аутентификация успешна, переход к списку чатов');
       // Если мы здесь, значит, аутентификация прошла успешно
       onAuthenticated(client);
     } catch (err) {
+      const errorMessage = err.message || 'Неизвестная ошибка';
+      addLog(`Ошибка при проверке кода: ${errorMessage}`, 'error');
       setError('Неверный код. Попробуйте снова.');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Переключатель для отображения/скрытия логов
+  const [showLogs, setShowLogs] = useState(true);
+  const toggleLogs = () => setShowLogs(prev => !prev);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
@@ -132,6 +189,43 @@ function Auth({ onAuthenticated }) {
             >
               Назад
             </button>
+          </div>
+        )}
+        
+        {/* Кнопка для переключения логов */}
+        <div className="mt-4 text-center">
+          <button 
+            onClick={toggleLogs}
+            className="text-sm text-blue-500 hover:text-blue-700"
+          >
+            {showLogs ? 'Скрыть логи' : 'Показать логи'}
+          </button>
+        </div>
+        
+        {/* Лог-консоль */}
+        {showLogs && (
+          <div className="mt-4">
+            <div 
+              ref={logsRef}
+              className="p-2 bg-gray-900 text-gray-200 rounded text-xs font-mono h-40 overflow-y-auto"
+            >
+              {logs.length === 0 ? (
+                <div className="text-gray-500">Логи загрузки будут отображаться здесь...</div>
+              ) : (
+                logs.map((log, index) => (
+                  <div 
+                    key={index} 
+                    className={`mb-1 ${
+                      log.type === 'error' ? 'text-red-400' : 
+                      log.type === 'warning' ? 'text-yellow-400' : 
+                      'text-green-400'
+                    }`}
+                  >
+                    <span className="text-gray-500">[{log.timestamp}]</span> {log.message}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
       </div>
