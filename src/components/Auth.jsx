@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createTdLibClient } from 'tdweb-js';
+import TdClient from 'tdweb';
 
 function Auth({ onAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -10,7 +10,7 @@ function Auth({ onAuthenticated }) {
   const [client, setClient] = useState(null);
 
   useEffect(() => {
-    const tdLibClient = createTdLibClient({
+    const tdLibClient = new TdClient({
       apiId: import.meta.env.VITE_TELEGRAM_API_ID,
       apiHash: import.meta.env.VITE_TELEGRAM_API_HASH
     });
