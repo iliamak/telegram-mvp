@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node copy-tdweb-files.cjs && vite",
+    "build": "node copy-tdweb-files.cjs && vite build",
+    "preview": "vite preview",
+    "copy-tdweb": "node copy-tdweb-files.cjs"
   },
   "dependencies": {
     "react": "^18.2.0",
