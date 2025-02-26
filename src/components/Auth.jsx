@@ -30,13 +30,21 @@ function Auth({ onAuthenticated }) {
   useEffect(() => {
     addLog('Начинаем загрузку TDLib...');
     
+    // Функция для определения базового пути
+    const getBasePath = () => {
+      // Проверяем, находимся ли мы в продакшне или в разработке
+      const isProduction = window.location.hostname !== 'localhost';
+      return isProduction ? '/' : './';
+    };
+    
     // Функция для динамической загрузки скрипта TDLib
     const loadTdLibScript = () => {
       return new Promise((resolve, reject) => {
-        addLog('Загрузка tdweb.js...');
+        const basePath = getBasePath();
+        addLog(`Загрузка tdweb.js из ${basePath}tdweb.js...`);
         
         const script = document.createElement('script');
-        script.src = '/tdweb.js'; // Путь к скрипту в публичной директории
+        script.src = `${basePath}tdweb.js`; // Путь к скрипту с учетом окружения
         script.async = true;
         script.onload = () => {
           addLog('tdweb.js успешно загружен', 'success');
@@ -77,7 +85,7 @@ function Auth({ onAuthenticated }) {
           mode: 'wasm', // Используем WebAssembly
           instanceName: 'telegram-mvp-instance',
           onUpdate: update => {
-            if (update['@type'] === 'updateAuthorizationState') {
+            if (update && update['@type'] === 'updateAuthorizationState' && update.authorization_state) {
               addLog(`Обновление статуса авторизации: ${update.authorization_state['@type']}`);
             }
           }
@@ -105,6 +113,11 @@ function Auth({ onAuthenticated }) {
         addLog(`Критическая ошибка при инициализации: ${err.message}`, 'error');
         setError(`Ошибка инициализации: ${err.message}`);
         console.error('Полная ошибка:', err);
+        
+        // Дополнительная отладочная информация
+        addLog(`User Agent: ${navigator.userAgent}`, 'info');
+        const isWasmSupported = typeof WebAssembly === 'object';
+        addLog(`WebAssembly поддерживается: ${isWasmSupported ? 'Да' : 'Нет'}`, isWasmSupported ? 'success' : 'error');
       });
   }, [onAuthenticated]);
 
@@ -176,6 +189,35 @@ function Auth({ onAuthenticated }) {
 
   const toggleLogs = () => setShowLogs(prev => !prev);
 
+  // Функция для тестирования соединения
+  const testConnection = () => {
+    addLog('Тестирование соединения...', 'info');
+    
+    // Проверка загрузки скриптов
+    addLog(`TDLib объект доступен: ${typeof window.tdweb !== 'undefined' ? 'Да' : 'Нет'}`, 
+           typeof window.tdweb !== 'undefined' ? 'success' : 'error');
+    
+    // Проверка возможности создания клиента
+    try {
+      if (typeof window.tdweb !== 'undefined') {
+        new window.tdweb.TdClient({apiId: 1, apiHash: 'test'});
+        addLog('Создание тестового клиента успешно', 'success');
+      } else {
+        addLog('Невозможно создать тестовый клиент - TDLib не загружен', 'error');
+      }
+    } catch (err) {
+      addLog(`Ошибка при создании тестового клиента: ${err.message}`, 'error');
+    }
+    
+    // Проверка WebAssembly
+    try {
+      addLog(`WebAssembly поддерживается: ${typeof WebAssembly === 'object' ? 'Да' : 'Нет'}`,
+             typeof WebAssembly === 'object' ? 'success' : 'error');
+    } catch (err) {
+      addLog(`Ошибка при проверке WebAssembly: ${err.message}`, 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
@@ -238,13 +280,20 @@ function Auth({ onAuthenticated }) {
           </div>
         )}
         
-        {/* Кнопка для переключения логов */}
-        <div className="mt-4 text-center">
+        {/* Кнопки управления */}
+        <div className="mt-4 flex justify-between">
           <button 
             onClick={toggleLogs}
             className="text-sm text-blue-500 hover:text-blue-700"
           >
             {showLogs ? 'Скрыть логи' : 'Показать логи'}
+          </button>
+          
+          <button 
+            onClick={testConnection}
+            className="text-sm text-green-500 hover:text-green-700"
+          >
+            Проверить соединение
           </button>
         </div>
         
@@ -275,6 +324,18 @@ function Auth({ onAuthenticated }) {
             </div>
           </div>
         )}
+        
+        {/* Статус подключения */}
+        <div className="mt-4 text-center">
+          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            tdlibLoaded ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            <span className={`w-2 h-2 mr-2 rounded-full ${
+              tdlibLoaded ? 'bg-green-500' : 'bg-yellow-500'
+            }`}></span>
+            {tdlibLoaded ? 'TDLib загружен' : 'Загрузка TDLib...'}
+          </div>
+        </div>
       </div>
     </div>
   );
