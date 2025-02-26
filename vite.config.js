@@ -1,18 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Выделяем tdweb в отдельный чанк для лучшей производительности
-          'tdweb-vendor': ['tdweb']
-        }
-      }
-    }
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
   },
   // Правильная настройка для работы со статическими файлами tdweb
   server: {
@@ -22,5 +18,21 @@ export default defineConfig({
     }
   },
   // Добавляем правильные пути для base path в production
-  base: './'
+  base: './',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // Отключаем минификацию для отладки
+    minify: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Разделение вендорных библиотек
+          'vendor': ['react', 'react-dom']
+        }
+      }
+    }
+  },
+  // Разрешаем импорт статических файлов
+  assetsInclude: ['**/*.wasm']
 })
