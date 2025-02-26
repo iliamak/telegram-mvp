@@ -14,12 +14,38 @@
 
 1. Клонировать репозиторий
 2. Создать файл `.env` на основе `.env.example` и добавить свои API ключи Telegram
-3. Установить зависимости: `npm install`
+3. Установить зависимости и TDLib: 
+   ```bash
+   # Для Linux/macOS
+   bash install-and-build.sh
+   
+   # Для Windows
+   npm install
+   npm run setup-tdlib
+   ```
 4. Запустить проект: `npm run dev`
+
+## Деплой на Vercel
+
+Проект настроен для автоматического деплоя на Vercel. При развертывании на Vercel:
+
+1. Установите переменные окружения:
+   - `VITE_TELEGRAM_API_ID` - ваш Telegram API ID
+   - `VITE_TELEGRAM_API_HASH` - ваш Telegram API Hash
+
+2. Vercel автоматически загрузит необходимые файлы TDLib и выполнит сборку.
+
+## Отладка
+
+Если у вас возникли проблемы:
+
+1. На странице авторизации доступны логи для отладки
+2. Используйте кнопку "Проверить соединение" для диагностики проблем с TDLib
+3. Убедитесь, что ваш браузер поддерживает WebAssembly
 
 ## Используемые технологии
 
 - React
 - Vite
-- TDLib (JavaScript обертка)
+- TDLib (Telegram Database Library)
 - Tailwind CSS
