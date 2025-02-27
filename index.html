@@ -5,36 +5,66 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Telegram MVP</title>
-    <!-- Предзагрузка TDWeb ресурсов -->
-    <link rel="preload" href="/tdweb.js" as="script" crossorigin="anonymous">
-    <link rel="preload" href="/worker.js" as="script" crossorigin="anonymous">
-    <!-- Загружаем TDWeb скрипт напрямую -->
-    <script src="/tdweb.js"></script>
+    
+    <!-- Предзагрузка TDWeb ресурсов с указанием типа и crossorigin -->
+    <link rel="preload" href="/tdweb.js" as="script" type="application/javascript" crossorigin="anonymous">
+    <link rel="preload" href="/worker.js" as="script" type="application/javascript" crossorigin="anonymous">
+    
+    <!-- Прямая загрузка TDWeb скриптов - сначала локальный, затем CDN как запасной вариант -->
     <script>
-      // Функция для проверки загрузки TDLib
+      // Функция загрузки скрипта с проверкой успеха
+      function loadScript(url, callback, errorCallback) {
+        console.log('Attempting to load script:', url);
+        const script = document.createElement('script');
+        script.src = url;
+        script.crossOrigin = 'anonymous';
+        script.onload = callback;
+        script.onerror = errorCallback;
+        document.head.appendChild(script);
+      }
+      
+      // Загрузка tdweb.js с запасным CDN вариантом
+      loadScript('/tdweb.js', 
+        function() { 
+          console.log('Local TDWeb script loaded successfully');
+        },
+        function() {
+          console.warn('Local TDWeb script failed to load, trying CDN...');
+          loadScript('https://cdn.jsdelivr.net/gh/tdlib/td@master/example/web/tdweb.js',
+            function() { console.log('CDN TDWeb script loaded successfully'); },
+            function() { console.error('Failed to load TDWeb from CDN'); }
+          );
+        }
+      );
+    </script>
+    
+    <script>
+      // Проверка загрузки TDLib
       function checkTdLibLoaded() {
         return typeof window.TdJsClient === 'function';
       }
       
-      // Выводим статус загрузки TDLib в консоль
+      // Диагностика загрузки
       window.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded event fired');
         console.log('TDLib loaded status:', checkTdLibLoaded());
         
-        // Если TDLib не загрузился, пробуем загрузить его вручную
-        if (!checkTdLibLoaded()) {
-          console.log('Attempting to load TDLib manually...');
-          const script = document.createElement('script');
-          script.src = '/tdweb.js';
-          script.async = false;
-          script.onload = () => console.log('Manual TDLib load complete, status:', checkTdLibLoaded());
-          script.onerror = (e) => console.error('Manual TDLib load failed:', e);
-          document.head.appendChild(script);
-        }
+        setTimeout(() => {
+          console.log('Delayed TDLib status check (1s):', checkTdLibLoaded());
+        }, 1000);
+        
+        setTimeout(() => {
+          console.log('Final TDLib status check (3s):', checkTdLibLoaded());
+          if (!checkTdLibLoaded()) {
+            console.warn('TDLib still not loaded after 3s, app may have issues');
+          }
+        }, 3000);
       });
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- Добавляем nonce для предотвращения CSP проблем -->
+    <script nonce="telegram-mvp" type="module" src="/src/main.jsx"></script>
   </body>
 </html>
