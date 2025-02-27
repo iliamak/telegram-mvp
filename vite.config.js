@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      // Добавляем прямой алиас для tdweb-js, чтобы Vite гарантированно его нашел
+      'tdweb-js': resolve(__dirname, 'src/lib/tdweb-js.js')
     },
   },
   // Правильная настройка для работы со статическими файлами tdweb
@@ -23,7 +25,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     // Для отладки отключаем минификацию
-    minify: false,
+    minify: process.env.NODE_ENV !== 'production',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -34,7 +36,8 @@ export default defineConfig({
       // Явно указываем внешние модули, которые не нужно обрабатывать
       external: ['tdweb-js'],
     },
-    // Исключаем предупреждения о неразрешенных импортах
+    // Отключаем предупреждения о неразрешенных импортах
+    chunkSizeWarningLimit: 1600,
     commonjsOptions: {
       esmExternals: true,
     }
@@ -45,5 +48,11 @@ export default defineConfig({
   // Для корректной обработки worker.js и других файлов
   optimizeDeps: {
     exclude: ['tdweb-js'],
+    esbuildOptions: {
+      // Настройки для предотвращения ошибок импорта
+      define: {
+        global: 'globalThis'
+      },
+    }
   }
 })
