@@ -22,7 +22,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Отключаем минификацию для отладки
+    // Для отладки отключаем минификацию
     minify: false,
     rollupOptions: {
       output: {
@@ -30,9 +30,20 @@ export default defineConfig({
           // Разделение вендорных библиотек
           'vendor': ['react', 'react-dom']
         }
-      }
+      },
+      // Явно указываем внешние модули, которые не нужно обрабатывать
+      external: ['tdweb-js'],
+    },
+    // Исключаем предупреждения о неразрешенных импортах
+    commonjsOptions: {
+      esmExternals: true,
     }
   },
   // Разрешаем импорт статических файлов
-  assetsInclude: ['**/*.wasm']
+  assetsInclude: ['**/*.wasm'],
+  
+  // Для корректной обработки worker.js и других файлов
+  optimizeDeps: {
+    exclude: ['tdweb-js'],
+  }
 })
