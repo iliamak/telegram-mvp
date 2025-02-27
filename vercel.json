@@ -4,6 +4,12 @@
   "installCommand": "npm install",
   "outputDirectory": "dist",
   "regions": ["iad1"],
+  "routes": [
+    { "src": "/tdweb.js", "dest": "/tdweb.js", "headers": { "content-type": "application/javascript" } },
+    { "src": "/worker.js", "dest": "/worker.js", "headers": { "content-type": "application/javascript" } },
+    { "src": "/wasm/td_wasm.wasm", "dest": "/wasm/td_wasm.wasm", "headers": { "content-type": "application/wasm" } },
+    { "src": "/wasm/td_wasm.js", "dest": "/wasm/td_wasm.js", "headers": { "content-type": "application/javascript" } }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -53,6 +59,10 @@
         {
           "key": "Cross-Origin-Resource-Policy",
           "value": "cross-origin"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
         }
       ]
     },
@@ -66,11 +76,12 @@
         {
           "key": "Cross-Origin-Resource-Policy",
           "value": "cross-origin"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
         }
       ]
     }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
   ]
 }
