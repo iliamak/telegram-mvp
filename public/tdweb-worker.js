@@ -1,3 +1,2 @@
-// Пустой воркер для корректной работы tdweb
-// Этот файл будет автоматически замещен при сборке
-console.log('TDWeb worker initialized');
+// Вспомогательный файл для инициализации TDWeb worker
+self.importScripts('worker.js');
