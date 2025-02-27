@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createTdLibClient } from 'tdweb-js';
+import { createTdLibClient } from '../lib/tdweb-js';
 
 function Auth({ onAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -19,87 +19,97 @@ function Auth({ onAuthenticated }) {
     }
     
     try {
-      const tdLibClient = createTdLibClient({
-        apiId: import.meta.env.VITE_TELEGRAM_API_ID,
-        apiHash: import.meta.env.VITE_TELEGRAM_API_HASH
-      });
-      
-      setClient(tdLibClient);
-      
-      const handleAuthStateUpdate = async (authState) => {
-        const type = authState['@type'];
-        
-        switch (type) {
-          case 'authorizationStateWaitTdlibParameters':
-            // Инициализация параметров TDLib
-            await tdLibClient.send({
-              '@type': 'setTdlibParameters',
-              'parameters': {
-                '@type': 'tdlibParameters',
-                'use_test_dc': false,
-                'api_id': import.meta.env.VITE_TELEGRAM_API_ID,
-                'api_hash': import.meta.env.VITE_TELEGRAM_API_HASH,
-                'system_language_code': 'ru',
-                'device_model': 'Web Client',
-                'application_version': '1.0',
-                'enable_storage_optimizer': true
-              }
-            });
-            break;
-          case 'authorizationStateWaitEncryptionKey':
-            await tdLibClient.send({
-              '@type': 'checkDatabaseEncryptionKey',
-              'encryption_key': ''
-            });
-            break;
-          case 'authorizationStateWaitPhoneNumber':
-            setStep('phone');
-            setIsLoading(false);
-            break;
-          case 'authorizationStateWaitCode':
-            setStep('code');
-            setIsLoading(false);
-            // Включаем повторную отправку кода через 30 секунд
-            setTimeout(() => {
-              setCanResendCode(true);
-            }, 30000);
-            break;
-          case 'authorizationStateWaitPassword':
-            setStep('password'); 
-            setIsLoading(false);
-            break;
-          case 'authorizationStateReady':
-            onAuthenticated(tdLibClient);
-            break;
-          case 'authorizationStateLoggingOut':
-          case 'authorizationStateClosing':
-          case 'authorizationStateClosed':
-            // Обработка выхода из системы
-            setStep('phone');
-            break;
-          default:
-            console.log('Unhandled auth state:', type);
+      const initClient = async () => {
+        try {
+          // Создаем клиент TDLib с использованием нашего модуля
+          const tdLibClient = await createTdLibClient({
+            apiId: import.meta.env.VITE_TELEGRAM_API_ID,
+            apiHash: import.meta.env.VITE_TELEGRAM_API_HASH
+          });
+          
+          setClient(tdLibClient);
+          
+          const handleAuthStateUpdate = async (authState) => {
+            const type = authState['@type'];
+            
+            switch (type) {
+              case 'authorizationStateWaitTdlibParameters':
+                // Инициализация параметров TDLib
+                await tdLibClient.send({
+                  '@type': 'setTdlibParameters',
+                  'parameters': {
+                    '@type': 'tdlibParameters',
+                    'use_test_dc': false,
+                    'api_id': import.meta.env.VITE_TELEGRAM_API_ID,
+                    'api_hash': import.meta.env.VITE_TELEGRAM_API_HASH,
+                    'system_language_code': 'ru',
+                    'device_model': 'Web Client',
+                    'application_version': '1.0',
+                    'enable_storage_optimizer': true
+                  }
+                });
+                break;
+              case 'authorizationStateWaitEncryptionKey':
+                await tdLibClient.send({
+                  '@type': 'checkDatabaseEncryptionKey',
+                  'encryption_key': ''
+                });
+                break;
+              case 'authorizationStateWaitPhoneNumber':
+                setStep('phone');
+                setIsLoading(false);
+                break;
+              case 'authorizationStateWaitCode':
+                setStep('code');
+                setIsLoading(false);
+                // Включаем повторную отправку кода через 30 секунд
+                setTimeout(() => {
+                  setCanResendCode(true);
+                }, 30000);
+                break;
+              case 'authorizationStateWaitPassword':
+                setStep('password'); 
+                setIsLoading(false);
+                break;
+              case 'authorizationStateReady':
+                onAuthenticated(tdLibClient);
+                break;
+              case 'authorizationStateLoggingOut':
+              case 'authorizationStateClosing':
+              case 'authorizationStateClosed':
+                // Обработка выхода из системы
+                setStep('phone');
+                break;
+              default:
+                console.log('Unhandled auth state:', type);
+            }
+          };
+          
+          // Запрос текущего состояния авторизации
+          tdLibClient.send({
+            '@type': 'getAuthorizationState'
+          }).then(handleAuthStateUpdate);
+          
+          // Подписка на обновления состояния авторизации
+          const updateHandler = tdLibClient.onUpdate((update) => {
+            if (update['@type'] === 'updateAuthorizationState') {
+              handleAuthStateUpdate(update.authorization_state);
+            } else if (update['@type'] === 'updateOption' && update.name === 'authentication_code_info') {
+              // Сохраняем информацию о коде для возможности его повторной отправки
+              setCodeInfo(update.value);
+            }
+          });
+          
+          return () => {
+            if (updateHandler) updateHandler();
+          };
+        } catch (err) {
+          setError('Ошибка при инициализации клиента Telegram: ' + err.message);
+          console.error('TDLib initialization error:', err);
         }
       };
       
-      // Запрос текущего состояния авторизации
-      tdLibClient.send({
-        '@type': 'getAuthorizationState'
-      }).then(handleAuthStateUpdate);
-      
-      // Подписка на обновления состояния авторизации
-      const updateHandler = tdLibClient.onUpdate((update) => {
-        if (update['@type'] === 'updateAuthorizationState') {
-          handleAuthStateUpdate(update.authorization_state);
-        } else if (update['@type'] === 'updateOption' && update.name === 'authentication_code_info') {
-          // Сохраняем информацию о коде для возможности его повторной отправки
-          setCodeInfo(update.value);
-        }
-      });
-      
-      return () => {
-        if (updateHandler) updateHandler();
-      };
+      initClient();
     } catch (err) {
       setError('Ошибка при инициализации клиента Telegram: ' + err.message);
       console.error('TDLib initialization error:', err);
