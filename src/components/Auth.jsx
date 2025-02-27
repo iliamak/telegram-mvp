@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createTdLibClient } from '../lib/tdweb-js';
+// Обратите внимание: используется теперь алиас из vite.config.js,
+// что гарантирует правильное разрешение зависимости при сборке
+import { createTdLibClient } from 'tdweb-js';
 
 function Auth({ onAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -19,17 +21,27 @@ function Auth({ onAuthenticated }) {
     }
     
     try {
+      // Создаем асинхронную функцию для инициализации
       const initClient = async () => {
         try {
-          // Создаем клиент TDLib с использованием нашего модуля
+          // Отлов ошибок при создании клиента
           const tdLibClient = await createTdLibClient({
             apiId: import.meta.env.VITE_TELEGRAM_API_ID,
             apiHash: import.meta.env.VITE_TELEGRAM_API_HASH
           });
           
+          if (!tdLibClient || tdLibClient.error) {
+            throw new Error(tdLibClient?.error || 'Не удалось создать TDLib клиент');
+          }
+          
           setClient(tdLibClient);
           
           const handleAuthStateUpdate = async (authState) => {
+            if (!authState || !authState['@type']) {
+              console.warn('Invalid auth state received:', authState);
+              return;
+            }
+            
             const type = authState['@type'];
             
             switch (type) {
@@ -88,7 +100,10 @@ function Auth({ onAuthenticated }) {
           // Запрос текущего состояния авторизации
           tdLibClient.send({
             '@type': 'getAuthorizationState'
-          }).then(handleAuthStateUpdate);
+          }).then(handleAuthStateUpdate).catch(err => {
+            console.error('Error getting auth state:', err);
+            setError('Ошибка при получении состояния авторизации');
+          });
           
           // Подписка на обновления состояния авторизации
           const updateHandler = tdLibClient.onUpdate((update) => {
@@ -109,6 +124,7 @@ function Auth({ onAuthenticated }) {
         }
       };
       
+      // Вызываем функцию инициализации
       initClient();
     } catch (err) {
       setError('Ошибка при инициализации клиента Telegram: ' + err.message);
@@ -117,6 +133,11 @@ function Auth({ onAuthenticated }) {
   }, [onAuthenticated]);
 
   const sendPhoneNumber = async () => {
+    if (!client) {
+      setError('TDLib клиент не инициализирован');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     setCanResendCode(false);
@@ -143,6 +164,11 @@ function Auth({ onAuthenticated }) {
   };
 
   const sendVerificationCode = async () => {
+    if (!client) {
+      setError('TDLib клиент не инициализирован');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     
@@ -161,6 +187,11 @@ function Auth({ onAuthenticated }) {
   };
   
   const sendPassword = async () => {
+    if (!client) {
+      setError('TDLib клиент не инициализирован');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     
@@ -179,6 +210,11 @@ function Auth({ onAuthenticated }) {
   };
   
   const resendCode = async () => {
+    if (!client) {
+      setError('TDLib клиент не инициализирован');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     setCanResendCode(false);
