@@ -5,17 +5,32 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Telegram MVP</title>
-    <!-- Preload essential TDWeb resources -->
-    <link rel="preload" href="/tdweb.js" as="script">
-    <link rel="preload" href="/worker.js" as="script">
+    <!-- Предзагрузка TDWeb ресурсов -->
+    <link rel="preload" href="/tdweb.js" as="script" crossorigin="anonymous">
+    <link rel="preload" href="/worker.js" as="script" crossorigin="anonymous">
+    <!-- Загружаем TDWeb скрипт напрямую -->
+    <script src="/tdweb.js"></script>
     <script>
-      // Создаем заглушку для tdweb-js библиотеки, чтобы избежать ошибки при сборке
-      window.tdweb_js = {};
-      
       // Функция для проверки загрузки TDLib
       function checkTdLibLoaded() {
-        return typeof window.TdJsClient !== 'undefined';
+        return typeof window.TdJsClient === 'function';
       }
+      
+      // Выводим статус загрузки TDLib в консоль
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('TDLib loaded status:', checkTdLibLoaded());
+        
+        // Если TDLib не загрузился, пробуем загрузить его вручную
+        if (!checkTdLibLoaded()) {
+          console.log('Attempting to load TDLib manually...');
+          const script = document.createElement('script');
+          script.src = '/tdweb.js';
+          script.async = false;
+          script.onload = () => console.log('Manual TDLib load complete, status:', checkTdLibLoaded());
+          script.onerror = (e) => console.error('Manual TDLib load failed:', e);
+          document.head.appendChild(script);
+        }
+      });
     </script>
   </head>
   <body>
