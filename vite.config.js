@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      // Добавляем прямой алиас для tdweb-js, чтобы Vite гарантированно его нашел
+      'tdweb-js': resolve(__dirname, 'src/lib/tdweb-js.js')
     },
   },
   // Правильная настройка для работы со статическими файлами tdweb
@@ -22,17 +24,35 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Отключаем минификацию для отладки
-    minify: false,
+    // Для отладки отключаем минификацию
+    minify: process.env.NODE_ENV !== 'production',
     rollupOptions: {
       output: {
         manualChunks: {
           // Разделение вендорных библиотек
           'vendor': ['react', 'react-dom']
         }
-      }
+      },
+      // Явно указываем внешние модули, которые не нужно обрабатывать
+      external: ['tdweb-js'],
+    },
+    // Отключаем предупреждения о неразрешенных импортах
+    chunkSizeWarningLimit: 1600,
+    commonjsOptions: {
+      esmExternals: true,
     }
   },
   // Разрешаем импорт статических файлов
-  assetsInclude: ['**/*.wasm']
+  assetsInclude: ['**/*.wasm'],
+  
+  // Для корректной обработки worker.js и других файлов
+  optimizeDeps: {
+    exclude: ['tdweb-js'],
+    esbuildOptions: {
+      // Настройки для предотвращения ошибок импорта
+      define: {
+        global: 'globalThis'
+      },
+    }
+  }
 })

@@ -7,30 +7,34 @@ function Chat({ client, chat, onBack }) {
   const [messageText, setMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [file, setFile] = useState(null);
+  const [sendSuccess, setSendSuccess] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const result = await client.send({
-          '@type': 'getChatHistory',
-          'chat_id': chat.id,
-          'limit': 50,
-          'offset': 0,
-          'from_message_id': 0,
-          'only_local': false
-        });
-        
-        setMessages(result.messages.reverse());
-      } catch (err) {
-        setError('Не удалось загрузить сообщения');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchMessages = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await client.send({
+        '@type': 'getChatHistory',
+        'chat_id': chat.id,
+        'limit': 50,
+        'offset': 0,
+        'from_message_id': 0,
+        'only_local': false
+      });
+      
+      setMessages(result.messages.reverse());
+    } catch (err) {
+      setError('Не удалось загрузить сообщения');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchMessages();
     
     // Слушаем новые сообщения
@@ -50,14 +54,30 @@ function Chat({ client, chat, onBack }) {
     scrollToBottom();
   }, [messages]);
 
+  // Скрываем уведомление об успешной отправке сообщения через 3 секунды
+  useEffect(() => {
+    if (sendSuccess) {
+      const timer = setTimeout(() => {
+        setSendSuccess(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [sendSuccess]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleRetry = () => {
+    fetchMessages();
   };
 
   const sendMessage = async () => {
     if (!messageText.trim() && !file) return;
     
     setIsSending(true);
+    setError('');
     
     try {
       if (file) {
@@ -156,8 +176,10 @@ function Chat({ client, chat, onBack }) {
       }
       
       setMessageText('');
+      // Показываем уведомление об успешной отправке
+      setSendSuccess(true);
     } catch (err) {
-      alert('Ошибка при отправке сообщения');
+      setError('Ошибка при отправке сообщения');
       console.error(err);
     } finally {
       setIsSending(false);
@@ -167,6 +189,8 @@ function Chat({ client, chat, onBack }) {
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
       setFile(e.target.files[0]);
+      // Сбрасываем ошибку при выборе нового файла
+      setError('');
     }
   };
 
@@ -263,6 +287,12 @@ function Chat({ client, chat, onBack }) {
         ) : error ? (
           <div className="p-4 text-red-500 text-center">
             {error}
+            <button 
+              onClick={handleRetry}
+              className="block mx-auto mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Повторить
+            </button>
           </div>
         ) : messages.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
@@ -300,6 +330,20 @@ function Chat({ client, chat, onBack }) {
       
       {/* Форма отправки сообщения */}
       <div className="p-3 bg-white border-t border-gray-200">
+        {/* Уведомление об успешной отправке сообщения */}
+        {sendSuccess && (
+          <div className="mb-2 p-2 bg-green-100 text-green-700 rounded text-center">
+            Сообщение отправлено
+          </div>
+        )}
+        
+        {/* Отображение ошибки отправки */}
+        {error && !isLoading && (
+          <div className="mb-2 p-2 bg-red-100 text-red-700 rounded text-center">
+            {error}
+          </div>
+        )}
+        
         {file && (
           <div className="mb-2 p-2 bg-gray-100 rounded flex justify-between items-center">
             <span className="truncate">{file.name}</span>

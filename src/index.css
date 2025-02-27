@@ -5,6 +5,48 @@
 /* Loader */
 .loader {
   @apply inline-block px-4 py-2 text-blue-500;
+  position: relative;
+}
+
+.loader::after {
+  content: '...';
+  position: absolute;
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+/* Spin animation for refresh icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Notification animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-enter {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Message status indicator */
+.message-status {
+  @apply inline-flex items-center text-xs text-gray-500;
+}
+
+.message-status-sent {
+  @apply text-green-500;
 }
 
 /* Scrollbar styling */
@@ -23,4 +65,13 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+/* Transition effects */
+.transition-fast {
+  transition: all 0.15s ease-in-out;
+}
+
+.hover-rise:hover {
+  transform: translateY(-2px);
 }
